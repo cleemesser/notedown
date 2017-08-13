@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import tempfile
+import json
 
 from six import PY3
 from six.moves import map
@@ -389,6 +390,7 @@ class MarkdownWriter(NotebookWriter):
         """
         filters = [
             ('string2json', self.string2json),
+            ('create_cell_metadata', self.create_cell_optional_metadata),
             ('create_input_codeblock', self.create_input_codeblock),
             ('create_output_codeblock', self.create_output_codeblock),
             ('create_output_block', self.create_output_block),
@@ -458,6 +460,7 @@ class MarkdownWriter(NotebookWriter):
                 f.write(data)
 
     # --- filter functions to be used in the output template --- #
+
     def string2json(self, string):
         """Convert json into its string representation.
         Used for writing outputs to markdown."""
@@ -468,12 +471,20 @@ class MarkdownWriter(NotebookWriter):
             'separators': (',', ': '),
         }
         return cast_unicode(json.dumps(string, **kwargs), 'utf-8')
-
+    def create_cell_optional_metadata(self, cell):
+        # regard this as a json dict with outer {} replaced by ()
+        if cell.metadata:
+            cmt = '[//]: # ({"cell_type": %s, "metadata":%s})' % (json.dumps(cell.cell_type),json.dumps(cell.metadata))
+            return cmt
+        else:
+            return '[//]: # ({"cell_type": %s})' % json.dumps(cell.cell_type)
+        
     def create_input_codeblock(self, cell):
         codeblock = ('{fence}{attributes}\n'
                      '{cell.source}\n'
                      '{fence}')
         attrs = self.create_attributes(cell, cell_type='input')
+        
         return codeblock.format(attributes=attrs, fence='```', cell=cell)
 
     def create_output_block(self, cell):
@@ -499,6 +510,9 @@ class MarkdownWriter(NotebookWriter):
 
         attrs = cell.metadata.get('attributes')
         attr = PandocAttributes(attrs, 'dict')
+        
+        # PandocAttributes just can't seem to handle this well
+        # attr['metadata'] = "'%s'" % json.dumps(cell.metadata) # try adding this back -clm
 
         if 'python' in attr.classes:
             attr.classes.remove('python')
@@ -520,6 +534,7 @@ class MarkdownWriter(NotebookWriter):
             return attr.to_markdown(format='{classes} {id} {kvs}')
 
         else:
+
             return attr.to_markdown()
 
     @staticmethod

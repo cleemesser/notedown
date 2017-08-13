@@ -1,10 +1,12 @@
 {% extends 'display_priority.tpl' %}
 
 {% block input %}
+{{ cell | create_cell_metadata }}
 {{ cell | create_input_codeblock }}
 {% endblock input %}
 
 {% block markdowncell scoped %}
+{{ cell | create_cell_metadata }}
 {{ cell.source | wordwrap(80, False) }}
 {% endblock markdowncell %}
 
@@ -17,7 +19,10 @@
 {% endblock headingcell %}
 
 {% block unknowncell scoped %}
-unknown type  {{ cell.type }}
+{{ cell | create_cell_metadata }}
+```
+cell.source
+```
 {% endblock unknowncell %}
 
 {% block pyerr %}
